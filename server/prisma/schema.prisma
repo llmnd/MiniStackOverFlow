@@ -1,18 +1,14 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("POSTGRES_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String    @id @default(cuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   email     String    @unique
   username  String    @unique
   password  String
@@ -25,26 +21,26 @@ model User {
 }
 
 model Question {
-  id        String    @id @default(cuid())
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
   title     String
   content   String
-  author    User      @relation(fields: [authorId], references: [id])
-  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  authorId  String        @db.ObjectId
   answers   Answer[]
   votes     Vote[]
   comments  Comment[]
-  tags      Tag[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  tags      QuestionTag[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
 model Answer {
-  id         String    @id @default(cuid())
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   content    String
   author     User      @relation(fields: [authorId], references: [id])
-  authorId   String
+  authorId   String    @db.ObjectId
   question   Question  @relation(fields: [questionId], references: [id])
-  questionId String
+  questionId String    @db.ObjectId
   votes      Vote[]
   comments   Comment[]
   isAccepted Boolean   @default(false)
@@ -53,27 +49,27 @@ model Answer {
 }
 
 model Comment {
-  id         String    @id @default(cuid())
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   content    String
   author     User      @relation(fields: [authorId], references: [id])
-  authorId   String
+  authorId   String    @db.ObjectId
   question   Question? @relation(fields: [questionId], references: [id])
-  questionId String?
+  questionId String?   @db.ObjectId
   answer     Answer?   @relation(fields: [answerId], references: [id])
-  answerId   String?
+  answerId   String?   @db.ObjectId
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
 
 model Vote {
-  id         String    @id @default(cuid())
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   value      Int       // 1 for upvote, -1 for downvote
   author     User      @relation(fields: [authorId], references: [id])
-  authorId   String
+  authorId   String    @db.ObjectId
   question   Question? @relation(fields: [questionId], references: [id])
-  questionId String?
+  questionId String?   @db.ObjectId
   answer     Answer?   @relation(fields: [answerId], references: [id])
-  answerId   String?
+  answerId   String?   @db.ObjectId
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
@@ -82,9 +78,21 @@ model Vote {
 }
 
 model Tag {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  questions Question[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  name      String        @unique
+  questions QuestionTag[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// Pivot table for Question <-> Tag
+model QuestionTag {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  question   Question  @relation(fields: [questionId], references: [id])
+  questionId String    @db.ObjectId
+  tag        Tag       @relation(fields: [tagId], references: [id])
+  tagId      String    @db.ObjectId
+  createdAt  DateTime  @default(now())
+
+  @@unique([questionId, tagId])
 }

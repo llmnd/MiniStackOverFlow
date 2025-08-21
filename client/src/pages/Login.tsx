@@ -5,9 +5,48 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login logic
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Réponse du serveur:', { status: response.status, data });
+
+      if (!response.ok) {
+        throw new Error(data.message || data.details || 'Erreur lors de la connexion');
+      }
+
+      // Stockage du token
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Redirection vers la page d'accueil
+      window.location.href = '/questions';
+    } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
+      
+      let errorMessage = 'Une erreur est survenue lors de la connexion';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      setErrors({
+        general: errorMessage,
+      });
+    }
   };
 
   return (
@@ -52,6 +91,11 @@ const Login = () => {
             </div>
           </div>
 
+          {errors.general && (
+            <div className="p-3 mb-4 text-sm rounded-lg bg-red-900/50 text-red-300 border border-red-800">
+              {errors.general}
+            </div>
+          )}
           <div>
             <button
               type="submit"

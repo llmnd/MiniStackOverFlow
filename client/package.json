@@ -13,6 +13,8 @@
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
     "@reduxjs/toolkit": "^2.8.2",
+    "@tailwindcss/line-clamp": "^0.4.4",
+    "@tailwindcss/typography": "^0.5.16",
     "@tiptap/extension-code-block": "^3.2.1",
     "@tiptap/extension-image": "^3.2.1",
     "@tiptap/extension-link": "^3.2.1",
@@ -21,6 +23,7 @@
     "axios": "^1.11.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.8.1"
   },
