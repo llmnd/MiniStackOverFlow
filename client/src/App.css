@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles personnalisés */
+.hover-scale {
+  @apply transition-transform duration-200 ease-in-out;
+}
+
+.hover-scale:hover {
+  @apply transform scale-105;
+}
+
+.btn-primary {
+  @apply bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply text-gray-600 hover:text-gray-800 transition-colors duration-200;
+}
+
+.tag {
+  @apply px-2 py-1 rounded text-sm font-medium transition-colors duration-200;
+}
+a {
+  font-weight: 500;
+  color: #2e3064;
+  text-decoration: inherit;
+}
