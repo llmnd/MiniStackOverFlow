@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  username  String   @unique
+  bio       String?
+  password  String
+  avatar    String?
+  questions Question[]
+  answers   Answer[]
+  votes     Vote[]
+  comments  Comment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Question {
+  id        Int           @id @default(autoincrement())
+  title     String
+  content   String
+  domain    String
+  author    User          @relation(fields: [authorId], references: [id])
+  authorId  Int
+  answers   Answer[]
+  votes     Vote[]
+  comments  Comment[]
+  tags      QuestionTag[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Answer {
+  id         Int      @id @default(autoincrement())
+  content    String
+  author     User     @relation(fields: [authorId], references: [id])
+  authorId   Int
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+  votes      Vote[]
+  comments   Comment[]
+  isAccepted Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Comment {
+  id         Int       @id @default(autoincrement())
+  content    String
+  author     User      @relation(fields: [authorId], references: [id])
+  authorId   Int
+  question   Question? @relation(fields: [questionId], references: [id])
+  questionId Int?
+  answer     Answer?   @relation(fields: [answerId], references: [id])
+  answerId   Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Vote {
+  id         Int       @id @default(autoincrement())
+  value      Int       // 1 for upvote, -1 for downvote
+  author     User      @relation(fields: [authorId], references: [id])
+  authorId   Int
+  question   Question? @relation(fields: [questionId], references: [id])
+  questionId Int?
+  answer     Answer?   @relation(fields: [answerId], references: [id])
+  answerId   Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([authorId, questionId])
+  @@unique([authorId, answerId])
+}
+
+model Tag {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique
+  questions QuestionTag[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+// Pivot table for Question <-> Tag
+model QuestionTag {
+  id         Int      @id @default(autoincrement())
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+  tag        Tag      @relation(fields: [tagId], references: [id])
+  tagId      Int
+  createdAt  DateTime @default(now())
+
+  @@unique([questionId, tagId])
+}

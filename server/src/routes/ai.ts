@@ -1,0 +1,66 @@
+import { Router } from 'express';
+import { auth } from '../middleware/auth';
+
+const router = Router();
+
+// Diagnostic ping to confirm the AI router is mounted and reachable
+router.get('/ping', (_req, res) => {
+  res.json({ ok: true, route: '/api/ai/ping' });
+});
+
+interface GroqResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
+router.post('/groq', auth, async (req, res) => {
+  console.log('Received AI request body:', req.body);
+  
+  const { prompt, model } = req.body || {};
+  if (!prompt) {
+    console.log('Missing prompt in request body');
+    return res.status(400).json({ error: 'Missing prompt in request body' });
+  }
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: model || 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Groq API error:', error);
+      return res.status(response.status).json({ 
+        error: 'AI service error', 
+        details: error 
+      });
+    }
+
+    const data = await response.json() as GroqResponse;
+    res.json({
+      result: data.choices[0].message.content,
+      raw: data
+    });
+  } catch (err) {
+    console.error('AI proxy error:', err);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: err instanceof Error ? err.message : 'Unknown error'
+    });
+  }
+});
+
+export default router;

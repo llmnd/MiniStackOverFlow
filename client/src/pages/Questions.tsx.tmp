@@ -1,0 +1,168 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import QuestionCard from '../components/QuestionCard';
+import { fetchWithAuth } from '../utils/api';
+
+interface Question {
+  id: number;
+  title: string;
+  content: string;
+  authorId: number;
+  createdAt: string;
+  updatedAt: string;
+  author: {
+    id: number;
+    username: string;
+    email?: string;
+  };
+  _count: {
+    answers: number;
+    votes: number;
+  };
+  tags: {
+    tag: {
+      name: string;
+    };
+  }[];
+  answers: Array<{
+    id: number;
+    content: string;
+    authorId: number;
+    author: {
+      id: number;
+      username: string;
+    };
+  }>;
+  votes: Array<{
+    id: number;
+    value: number;
+    userId: number;
+  }>;
+  comments: Array<{
+    id: number;
+    content: string;
+    authorId: number;
+    author: {
+      id: number;
+      username: string;
+    };
+  }>;
+}
+
+export default function Questions() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'newest' | 'votes' | 'unanswered'>('newest');
+
+  // Global styles for better contrast and readability
+  useEffect(() => {
+    document.body.classList.add('bg-gray-50', 'text-gray-900');
+    return () => {
+      document.body.classList.remove('bg-gray-50', 'text-gray-900');
+    };
+  }, []);
+
+  // Fetch and sort questions
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchWithAuth('/api/questions');
+        console.log('Fetched questions:', data);
+        
+        // Sort questions based on criteria
+        const sortedQuestions = [...data].sort((a: Question, b: Question) => {
+          switch (sortBy) {
+            case 'newest':
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            case 'votes':
+              return (b._count?.votes || 0) - (a._count?.votes || 0);
+            case 'unanswered':
+              if ((a._count?.answers || 0) === 0 && (b._count?.answers || 0) > 0) return -1;
+              if ((b._count?.answers || 0) === 0 && (a._count?.answers || 0) > 0) return 1;
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            default:
+              return 0;
+          }
+        });
+
+        setQuestions(sortedQuestions);
+      } catch (err) {
+        console.error('Error fetching questions:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch questions');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuestions();
+  }, [sortBy]);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-lg shadow-sm">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Questions</h1>
+            <p className="text-gray-600 mt-2">Browse all questions or ask your own</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'votes' | 'unanswered')}
+              className="bg-white border border-gray-300 rounded-md py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="newest">Newest First</option>
+              <option value="votes">Most Votes</option>
+              <option value="unanswered">Unanswered</option>
+            </select>
+            <Link
+              to="/ask"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              <span>Ask Question</span>
+            </Link>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        ) : questions.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">No questions found</h3>
+            <p className="mt-1 text-gray-500">Get started by creating the first question!</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {questions.map((question) => (
+              <QuestionCard key={question.id} question={question} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

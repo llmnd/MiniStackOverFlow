@@ -1,0 +1,192 @@
+import { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../utils/api';
+
+interface AIResponse {
+  result?: string;
+  error?: string;
+  details?: string;
+}
+
+type Props = {
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export default function SidebarAssistant({ open: openProp, onClose }: Props) {
+  const [open, setOpen] = useState<boolean>(!!openProp);
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [userInitial, setUserInitial] = useState<string>('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get user info from localStorage
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.username) {
+          setUserInitial(user.username.charAt(0).toUpperCase());
+        }
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
+  }, []);
+
+  // sync controlled prop
+  useEffect(() => {
+    if (typeof openProp === 'boolean') setOpen(openProp);
+  }, [openProp]);
+
+  const close = () => {
+    setOpen(false);
+    if (onClose) onClose();
+  };
+
+  const send = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setResponse(null);
+    
+    try {
+      // Vérifier si l'utilisateur est connecté
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Veuillez vous connecter pour utiliser l\'assistant IA.');
+      }
+
+      console.log('Sending AI request:', { prompt: prompt.trim() });
+      const res = await fetchWithAuth<AIResponse>('/api/ai/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim() })
+      });
+
+      console.log('AI response:', res);
+
+      if (!res || typeof res !== 'object') {
+        throw new Error('Réponse invalide du serveur');
+      }
+      
+      if ('error' in res || 'details' in res) {
+        const errorMessage = (res as any).error || (res as any).details || 'Erreur inconnue';
+        throw new Error(errorMessage);
+      }
+      
+      if ('result' in res) {
+        setResponse(res.result);
+      } else {
+        console.error('Unexpected response format:', res);
+        throw new Error('Format de réponse inattendu');
+      }
+    } catch (err) {
+      setResponse('Error: ' + (err instanceof Error ? err.message : 'Unknown'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If controlled and closed, render nothing
+  if (typeof openProp === 'boolean' && !open) return null;
+
+  // Render as a small modal/popup near the bottom right of the sidebar
+  return (
+    <div className="fixed right-8 bottom-8 max-w-md w-full z-50">
+      <div className="bg-white border rounded-lg shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
+            <strong>Assistant IA</strong>
+          </div>
+          <button onClick={close} className="text-white/80 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="max-h-96 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex items-start gap-3 ${
+                message.sender === 'user' ? 'flex-row-reverse' : ''
+              }`}
+            >
+              {message.sender === 'user' ? (
+                <Avatar 
+                  src={authState.user?.avatar}
+                  name={authState.user?.username}
+                  size={32}
+                  className="flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                  <ChatBubbleBottomCenterTextIcon className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div
+                className={`rounded-lg p-3 max-w-[80%] ${
+                  message.sender === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border text-gray-800'
+                }`}
+              >
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                <span className="text-xs opacity-70 block mt-1">
+                  {message.timestamp.toLocaleTimeString()}
+                </span>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                <ChatBubbleBottomCenterTextIcon className="w-5 h-5 text-white" />
+              </div>
+              <div className="bg-white border rounded-lg p-3 animate-pulse flex gap-1">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 bg-white border-t">
+          <div className="flex gap-2">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Posez votre question..."
+              className="flex-1 p-2 border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={1}
+              disabled={loading}
+            />
+            <button
+              onClick={send}
+              disabled={loading || !prompt.trim()}
+              className={`px-4 py-2 rounded-lg transition-colors flex-shrink-0 ${
+                loading || !prompt.trim()
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {loading ? '...' : 'Envoyer'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Appuyez sur Entrée pour envoyer, Maj+Entrée pour un saut de ligne
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

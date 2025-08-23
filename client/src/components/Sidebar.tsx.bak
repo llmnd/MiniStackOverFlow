@@ -1,0 +1,129 @@
+import { HomeIcon, TagIcon, UsersIcon, BuildingOfficeIcon, ChevronLeftIcon, ChevronRightIcon, ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline';
+import { Link, useLocation } from 'react-router-dom';
+import Avatar from './Avatar';
+import SidebarAssistant from './SidebarAssistant';
+import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../constants/api';
+
+const Sidebar = () => {
+  const location = useLocation();
+  
+  const isActive = (path: string) => location.pathname === path;
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === '1';
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0'); } catch {}
+  }, [collapsed]);
+
+  const [users, setUsers] = useState<Array<{ id: number; username: string; avatar: string | null }>>([]);
+  const [tags, setTags] = useState<Array<{ name: string; count: number }>>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/users`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error('Failed to fetch users for sidebar', err);
+      }
+    };
+
+    const fetchTags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/tags`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setTags(data);
+      } catch (err) {
+        console.error('Failed to fetch tags for sidebar', err);
+      }
+    };
+
+  fetchUsers();
+  fetchTags();
+  }, []);
+
+  const navItems = [
+    { name: 'Accueil', icon: HomeIcon, path: '/' },
+    { name: 'Questions', icon: TagIcon, path: '/questions' },
+    { name: 'Tags', icon: TagIcon, path: '/tags' },
+    { name: 'Utilisateurs', icon: UsersIcon, path: '/users' },
+    { name: 'Entreprises', icon: BuildingOfficeIcon, path: '/companies' }
+  ];
+
+  return (
+    <div className="flex">
+      {/* Main Sidebar */}
+      <nav className={`${collapsed ? 'w-16' : 'w-64'} fixed h-full bg-white border-r border-gray-200 transition-all overflow-y-auto`}>
+        <div className="p-2 space-y-2 flex flex-col min-h-full">
+          {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                isActive(item.path)
+                ? 'bg-blue-50 text-blue-600 font-medium'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              {!collapsed && <span>{item.name}</span>}
+            </Link>
+          );
+        })}
+
+        <div className="mt-4 px-2">
+          <h4 className={`text-sm text-gray-500 font-medium ${collapsed ? 'sr-only' : ''}`}>Community</h4>
+          <div className="mt-2 space-y-2">
+            {users.slice(0, 5).map(u => (
+              <Link key={u.id} to={`/user/${u.id}`} className={`flex items-center gap-3 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded px-2 ${collapsed ? 'justify-center' : ''}`}>
+                <Avatar src={u.avatar ?? null} name={u.username} size={24} className="w-6 h-6" />
+                {!collapsed && <span>{u.username}</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 px-2">
+          <h4 className={`text-sm text-gray-500 font-medium ${collapsed ? 'sr-only' : ''}`}>Top Tags</h4>
+          <div className="mt-2 px-1 flex flex-wrap gap-2">
+            {tags.slice(0, 20).map(t => (
+              <Link
+                key={t.name}
+                to={`/questions?tag=${encodeURIComponent(t.name)}`}
+                className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700 hover:bg-gray-200"
+                title={t.name}
+              >
+                {!collapsed ? t.name : t.name.charAt(0).toUpperCase()}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-auto px-2 pb-4 flex flex-col gap-2">
+          <button onClick={() => setAssistantOpen(true)} title="Assistant IA" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+            <ChatBubbleLeftEllipsisIcon className="w-5 h-5" />
+            {!collapsed && <span>Assistant IA</span>}
+          </button>
+
+          <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand' : 'Collapse'} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+            {collapsed ? <ChevronRightIcon className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
+            {!collapsed && <span>{collapsed ? 'Expand' : 'Collapse'}</span>}
+          </button>
+        </div>
+        <SidebarAssistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />
+      </div>
+    </nav>
+  );
+};
+
+export default Sidebar;

@@ -1,0 +1,148 @@
+import { HomeIcon, TagIcon, UsersIcon, BuildingOfficeIcon, ChevronLeftIcon, ChevronRightIcon, ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline';
+import { Link, useLocation } from 'react-router-dom';
+import Avatar from './Avatar';
+import SidebarAssistant from './SidebarAssistant';
+import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../constants/api';
+
+const Sidebar = () => {
+  const location = useLocation();
+  
+  const isActive = (path: string) => location.pathname === path;
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === '1';
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0'); } catch {}
+  }, [collapsed]);
+
+  const [users, setUsers] = useState<Array<{ id: number; username: string; avatar: string | null }>>([]);
+  const [tags, setTags] = useState<Array<{ name: string; count: number }>>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/users`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error('Failed to fetch users for sidebar', err);
+      }
+    };
+
+    const fetchTags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/tags`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setTags(data);
+      } catch (err) {
+        console.error('Failed to fetch tags for sidebar', err);
+      }
+    };
+
+    fetchUsers();
+    fetchTags();
+  }, []);
+
+  const navItems = [
+    { name: 'Accueil', icon: HomeIcon, path: '/' },
+    { name: 'Questions', icon: TagIcon, path: '/questions' },
+    { name: 'Tags', icon: TagIcon, path: '/tags' },
+    { name: 'Utilisateurs', icon: UsersIcon, path: '/users' },
+    { name: 'Entreprises', icon: BuildingOfficeIcon, path: '/companies' }
+  ];
+
+  return (
+    <div className="flex h-full">
+      {/* Main Sidebar */}
+      <nav className={`${collapsed ? 'w-16' : 'w-64'} fixed h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500`}> 
+        <div className="p-2 space-y-2 flex flex-col min-h-full">
+          {/* Navigation Items */}
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    isActive(item.path)
+                    ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-medium'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Community Section */}
+          <div className="mt-4 px-2">
+            <h4 className={`text-sm text-gray-500 font-medium ${collapsed ? 'sr-only' : ''}`}>Community</h4>
+            <div className="mt-2 space-y-2">
+              {users.slice(0, 5).map(u => (
+                <Link key={u.id} to={`/user/${u.id}`} className={`flex items-center gap-3 py-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 ${collapsed ? 'justify-center' : ''}`}>
+                  <Avatar src={u.avatar ?? null} name={u.username} size={24} className="w-6 h-6 flex-shrink-0" />
+                  {!collapsed && <span className="truncate">{u.username}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags Section */}
+          <div className="mt-4 px-2">
+            <h4 className={`text-sm text-gray-500 dark:text-gray-400 font-medium ${collapsed ? 'sr-only' : ''}`}>Top Tags</h4>
+            <div className="mt-2 px-1 flex flex-wrap gap-2">
+              {tags.slice(0, 20).map(t => (
+                <Link
+                  key={t.name}
+                  to={`/questions?tag=${encodeURIComponent(t.name)}`}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  title={t.name}
+                >
+                  {!collapsed ? t.name : t.name.charAt(0).toUpperCase()}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="mt-auto px-2 pb-4 flex flex-col gap-2">
+            <button onClick={() => setAssistantOpen(true)} title="Assistant IA" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300">
+              <ChatBubbleLeftEllipsisIcon className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span>Assistant IA</span>}
+            </button>
+
+            <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand' : 'Collapse'} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300">
+              {collapsed ? <ChevronRightIcon className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
+              {!collapsed && <span>{collapsed ? 'Expand' : 'Collapse'}</span>}
+            </button>
+          </div>
+          
+          <SidebarAssistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />
+        </div>
+      </nav>
+
+      {/* Overlay toggle button for collapsed state */}
+      {collapsed && (
+        <button 
+          onClick={() => setCollapsed(false)}
+          className="fixed left-16 top-1/2 -translate-y-1/2 bg-white p-1 rounded-r-lg shadow-md border border-l-0 border-gray-200 hover:bg-gray-50"
+          title="Expand Sidebar"
+        >
+          <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+export default Sidebar;
